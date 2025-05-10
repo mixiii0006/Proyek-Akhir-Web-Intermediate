@@ -118,6 +118,7 @@ class App {
     }
 
     const token = localStorage.getItem('token');
+    console.log('Token from localStorage:', token);
     if (!token) {
       alert('You must be logged in to manage push notifications.');
       return;
@@ -143,6 +144,7 @@ class App {
       } else {
         // Subscribe
         const permission = await Notification.requestPermission();
+        console.log('Notification permission status:', permission);
         if (permission !== 'granted') {
           alert('Notification permission not granted.');
           return;
@@ -177,12 +179,13 @@ class App {
     }
 
     try {
-      // Adjust service worker path for GitHub Pages deployment
-      const swPath = window.location.pathname === '/' ? '/sw.js' : `${window.location.pathname}sw.js`;
+      // Use relative path for service worker registration to support GitHub Pages subpath
+      const swPath = './sw.js';
       this.#serviceWorkerRegistration = await navigator.serviceWorker.register(swPath);
       console.log('Service Worker registered with scope:', this.#serviceWorkerRegistration.scope);
 
       const permission = await Notification.requestPermission();
+      console.log('Notification permission status:', permission);
       if (permission !== 'granted') {
         console.warn('Notification permission not granted.');
         return;
@@ -201,6 +204,7 @@ class App {
       });
 
       const token = localStorage.getItem('token');
+      console.log('Token from localStorage:', token);
       if (!token) {
         console.warn('User token not found, cannot subscribe to push notifications.');
         return;
