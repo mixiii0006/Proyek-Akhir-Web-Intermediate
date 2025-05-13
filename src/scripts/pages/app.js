@@ -11,6 +11,7 @@ class App {
   #subscribeButton = null;
   #serviceWorkerRegistration = null;
   #isSubscribed = false;
+  #currentPage = null;
 
   constructor({ navigationDrawer, drawerButton, content }) {
     this.#content = content;
@@ -179,11 +180,22 @@ class App {
     }
 
     try {
-      // Use relative path for service worker registration to support GitHub Pages subpath
-      const swPath = './sw.js';
+      // Use absolute path for service worker registration to match generated service worker
+      const swPath = '/service-worker.js';
       this.#serviceWorkerRegistration = await navigator.serviceWorker.register(swPath);
       console.log('Service Worker registered with scope:', this.#serviceWorkerRegistration.scope);
+    } catch (error) {
+      console.error('Failed to register service worker:', error);
+    }
+  }
 
+  async _subscribeToPush() {
+    if (!this.#serviceWorkerRegistration) {
+      console.warn('Service worker registration not found.');
+      return;
+    }
+
+    try {
       const permission = await Notification.requestPermission();
       console.log('Notification permission status:', permission);
       if (permission !== 'granted') {
@@ -222,7 +234,46 @@ class App {
       this._updateSubscribeButton(true);
       console.log('Subscribed to push notifications.');
     } catch (error) {
-      console.error('Failed to register service worker or subscribe:', error);
+      console.error('Error subscribing to push notifications:', error);
+    }
+  }
+
+  async _toggleSubscription() {
+    if (!this.#serviceWorkerRegistration) {
+      console.warn('Service worker registration not found.');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    console.log('Token from localStorage:', token);
+    if (!token) {
+      alert('You must be logged in to manage push notifications.');
+      return;
+    }
+
+    try {
+      if (this.#isSubscribed) {
+        // Unsubscribe
+        const subscription = await this.#serviceWorkerRegistration.pushManager.getSubscription();
+        if (subscription) {
+          const unsubscribed = await subscription.unsubscribe();
+          if (unsubscribed) {
+            await unsubscribeNotification(token, subscription.endpoint);
+            console.log('Unsubscribed from push notifications.');
+          } else {
+            console.warn('Failed to unsubscribe from push manager.');
+          }
+          // Refresh subscription status after unsubscribe
+          const newSubscription = await this.#serviceWorkerRegistration.pushManager.getSubscription();
+          this.#isSubscribed = newSubscription !== null;
+          this._updateSubscribeButton(this.#isSubscribed);
+        }
+      } else {
+        // Subscribe
+        await this._subscribeToPush();
+      }
+    } catch (error) {
+      console.error('Error toggling push subscription:', error);
     }
   }
 
@@ -273,10 +324,15 @@ class App {
       page = routes["*"];
     }
 
+    if (this.#currentPage && typeof this.#currentPage.cleanup === "function") {
+      this.#currentPage.cleanup();
+    }
+
     if (document.startViewTransition) {
       document.startViewTransition(async () => {
         this.#content.innerHTML = await page.render();
         await page.afterRender();
+        this.#currentPage = page;
         await this.registerServiceWorkerAndSubscribe();
         this.handleAddToHomeScreen();
       });
@@ -293,12 +349,14 @@ class App {
           duration: 300,
           easing: "ease-out",
         });
+        this.#currentPage = page;
         await this.registerServiceWorkerAndSubscribe();
         this.handleAddToHomeScreen();
       };
     } else {
       this.#content.innerHTML = await page.render();
       await page.afterRender();
+      this.#currentPage = page;
       await this.registerServiceWorkerAndSubscribe();
       this.handleAddToHomeScreen();
     }

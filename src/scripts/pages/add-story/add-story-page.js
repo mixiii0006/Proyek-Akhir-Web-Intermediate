@@ -102,4 +102,10 @@ export default class AddStoryPage {
     this.presenter = new AddStoryPresenter(this);
     await this.presenter.init();
   }
+
+  cleanup() {
+    if (this.presenter) {
+      this.presenter.stopCamera();
+    }
+  }
 }

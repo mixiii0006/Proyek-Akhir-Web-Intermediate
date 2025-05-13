@@ -48,7 +48,7 @@ module.exports = merge(common, {
           },
         },
         {
-          urlPattern: new RegExp('https://your-api-domain.com/'),
+          urlPattern: /https:\/\/your-api-domain\.com\//,
           handler: 'NetworkFirst',
           options: {
             cacheName: 'api-cache',

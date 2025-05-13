@@ -14,6 +14,13 @@ export default class AddStoryPresenter {
     this.stream = null;
   }
 
+  stopCamera() {
+    if (this.stream) {
+      this.stream.getTracks().forEach((track) => track.stop());
+      this.stream = null;
+    }
+  }
+
   async init() {
     await this.loadLeaflet();
     this.initMap();
